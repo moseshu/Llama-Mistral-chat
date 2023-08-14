@@ -21,4 +21,5 @@ data['instruction']="""<s>[INST] <<SYS>>
 
 {{ user_msg_1 }} [/INST] {{ model_answer_1 }} </s><s>[INST] {{ user_msg_2 }} [/INST] {{ model_answer_2 }} </s><s>[INST] {{ user_msg_3 }} [/INST]"""
 ```
-in my llm_trainer.py the input is not padding with -100. It's a bit like pretraining steps. from left to right to predict next word
+#### in my llm_trainer.py the input is not padding with -100. It's a bit like pretraining steps. from left to right to predict next word.
+#### if you want to padd the input with -100.you can also use sft_train.sh
