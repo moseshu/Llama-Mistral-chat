@@ -86,7 +86,7 @@ def tokenize_func(examples,tokenizer,add_eos_token=True):
             context = llama2_prompt['prompt_no_input'].format_map({"instruction": instruction})+ " "+ output
         else:
             context = instruction
-        if add_eos_token:
+        if add_eos_token and not context.endswith(tokenizer.eos_token):
             context = context + tokenizer.eos_token
         if not context.startswith(tokenizer.bos_token):
             context = tokenizer.bos_token + context
