@@ -17,7 +17,6 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node=8 --master_port=2
     --val_set_size 0 \
     --model_type llama \
     --lora_r 128 \
-    --cutoff_len 2048 \
     --learning_rate 2e-4 \
     --lora_alpha 128 \
     --lora_target_modules '[q_proj,k_proj,v_proj,o_proj,gate_proj,down_proj,up_proj]' \
