@@ -23,3 +23,7 @@ data['instruction']="""<s>[INST] <<SYS>>
 ```
 #### in my llm_trainer.py the input is not padding with -100. It's a bit like pretraining steps. from left to right to predict next word.
 #### if you want to padd the input with -100.you can also use sft_train.sh
+#### 3.implement trl pkg SFTTrainer class
+```
+sh run_sfttrainer.sh
+```
