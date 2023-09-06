@@ -173,6 +173,7 @@ def train(
     block_size: int = 512,
     use_int8 = False,
     add_eos_token = True,
+    flash_attn=False
     ):
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
@@ -197,6 +198,7 @@ def train(
             f"block_size: {block_size}\n"
             f"add_eos_token:{add_eos_token}\n"
             f"use_int8:{use_int8}\n"
+            f"flash_attn:{flash_attn}\n"
         )
 
     
@@ -219,12 +221,16 @@ def train(
             )
 
     
-    if tokenizer.model_max_length > 8192:
-        tokenizer.model_max_length = 8192
+    if tokenizer.model_max_length > 16000:
+        tokenizer.model_max_length = 16000
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = 0
-        
+
+    if flash_attn:
+        from llama2_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        replace_llama_attn_with_flash_attn()
+    
     if model.get_input_embeddings().weight.size(0) != len(tokenizer):
         print("Resize model embeddings to fit tokenizer")
         model.resize_token_embeddings(len(tokenizer))
