@@ -72,7 +72,20 @@ def tokenize(tokenizer, prompt, add_eos_token=True):
     result["labels"] = result["input_ids"].copy()
 
     return result
-
+    
+def load_datasets(data_path):
+    files = os.listdir(data_path)
+    data_paths = [os.path.join(data_path,f) for f in files]
+    all_datasets = []
+    for file in data_paths:
+        if not (file.endswith(".json") or file.endswith(".jsonl")):
+            continue
+        raw_dataset = load_dataset("json", data_files=file,cache_dir="./.cache/huggingface/datasets")
+        
+        all_datasets.append(raw_dataset['train'])
+    all_datasets = concatenate_datasets(all_datasets)
+    return all_datasets
+    
 def tokenize_func(examples,tokenizer,add_eos_token=True):
     text_all = []
     for i in range(len(examples['instruction'])):
@@ -258,12 +271,13 @@ def train(
 
     print("start load datasets")
     
-    if data_path.endswith(".json") or data_path.endswith(".jsonl"):
-        data = load_dataset("json", data_files=data_path)
+    # if data_path.endswith(".json") or data_path.endswith(".jsonl"):
+    #     data = load_dataset("json", data_files=data_path)
        
-    else:
-        data = load_dataset(data_path,cache_dir="./.cache/huggingface/datasets")
-    
+    # else:
+    #     data = load_dataset(data_path,cache_dir="./.cache/huggingface/datasets")
+        
+    data=load_datasets(data_path)
     print(f"end load datasets,sample:{len(data['train'])}")
 
 
@@ -309,7 +323,7 @@ def train(
     
         
     if val_set_size > 0:
-        train_val = data["train"].train_test_split(
+        train_val = data.train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
         )
         train_data = train_val["train"].map(generate_promt_func,
@@ -331,7 +345,7 @@ def train(
         )
         
     else:
-        train_data = data["train"].shuffle().map(generate_promt_func,
+        train_data = data.shuffle().map(generate_promt_func,
                                                       batched=True,
                                                       num_proc=8,)
         train_data = train_data.map(
