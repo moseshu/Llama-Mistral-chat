@@ -31,6 +31,7 @@ Huggingface link [My Huggingface Chat Model 7B](https://huggingface.co/Moses25/L
 
 ### 4.autotrain llama   [autotrain-advanced](https://github.com/huggingface/autotrain-advanced)
 ```
+cd autotrain
 sh run.sh
 
 ```
