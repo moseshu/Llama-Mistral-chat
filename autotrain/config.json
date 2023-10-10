@@ -1,0 +1,22 @@
+{
+  "model": "/root/moses/llama/llama_weight/Llama-2-7b-chat-hf",
+  "data_path": "/root/moses/llama/data/conversation-data",
+  "output_dir": "llama2-checkpoint-chat-v1",
+  "batch_size": 2,
+  "epochs": 2,
+  "gradient_accumulation": 32,
+  "fp16": true,
+  "lora_r": 64,
+  "lora_alpha": 128,
+  "lora_dropout": 0.05,
+  "add_eos_token": true,
+  "block_size": 1024,
+  "use_peft": true,
+  "auto_find_batch_size": true,
+  "model_max_length": 128000,
+  "trainer": "default",
+  "scheduler": "cosine",
+  "target_modules": "q_proj,k_proj,v_proj,o_proj,gate_proj,down_proj,up_proj",
+  "use_flash_attention_2": true,
+  "peft_path": "/root/moses/llama/sft/llama2-checkpoint-chat-belle3/checkpoint-59200/adapter_model"
+}
