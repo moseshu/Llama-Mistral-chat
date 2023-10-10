@@ -2,7 +2,7 @@ import os
 
 from pydantic import BaseModel, Field
 
-from logging1 import custom_logger as logger
+from my_logging import custom_logger as logger
 
 
 class LLMTrainingParams(BaseModel):
