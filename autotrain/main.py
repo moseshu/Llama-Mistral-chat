@@ -130,7 +130,7 @@ def train(config):
     model.resize_token_embeddings(len(tokenizer))
     if config.use_flash_attention_2:
         logger.info("use flash_attention_2")
-        from llama2_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        from training.llama2_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
         
     if config.use_peft:
