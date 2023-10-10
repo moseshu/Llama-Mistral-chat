@@ -7,7 +7,7 @@ from datasets import Dataset
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from logging1 import custom_logger as logger
+from my_logging import custom_logger as logger
 
 
 IGNORE_INDEX = -100
