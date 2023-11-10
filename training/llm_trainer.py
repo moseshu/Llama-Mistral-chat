@@ -345,10 +345,10 @@ def train(
         )
         
     else:
-        train_data = data.shuffle().map(generate_promt_func,
+        train_data = data.map(generate_promt_func,
                                                       batched=True,
                                                       num_proc=8,)
-        train_data = train_data.map(
+        train_data = train_data.shuffle(seed=1).map(
             group_texts,
             batched=True,
             num_proc=8
