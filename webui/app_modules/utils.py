@@ -12,7 +12,7 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import ClassNotFound
 from pygments.lexers import guess_lexer, get_lexer_by_name
 
-from app_modules.presets import *
+from webui.app_modules.presets import *
 
 logging.basicConfig(
     level=logging.INFO,

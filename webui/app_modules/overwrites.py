@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from app_modules.utils import *
+from webui.app_modules.utils import *
 
 
 def postprocess(
