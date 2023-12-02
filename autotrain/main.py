@@ -54,7 +54,41 @@ def load_datasets(data_path):
             print(f'load {file}file error check your file is correct json file')
     all_datasets = concatenate_datasets(all_datasets)
     return all_datasets
-    
+
+
+class Concatenator(object):
+    def __init__(self, chunk_size=4096):
+        self.chunk_size=chunk_size
+        self.residual = {"input_ids": [], "attention_mask": []}
+        
+    def __call__(self, batch):
+        concatenated_samples = {
+            k: v + list(chain(*batch[k])) for k, v in self.residual.items()
+        }
+
+        total_length = len(concatenated_samples[list(concatenated_samples.keys())[0]])
+
+        if total_length >= self.chunk_size:
+            chunk_num = total_length // self.chunk_size
+            result = {
+                k: [
+                    v[i : i + self.chunk_size]
+                    for i in range(0, chunk_num * self.chunk_size, self.chunk_size)
+                ]
+                for k, v in concatenated_samples.items()
+            }
+            self.residual = {
+                k: v[(chunk_num * self.chunk_size) :]
+                for k, v in concatenated_samples.items()
+            }
+        else:
+            result = concatenated_samples
+            self.residual = {k: [] for k in concatenated_samples.keys()}
+
+        result["labels"] = result["input_ids"].copy()
+
+        return result
+
 
 def train(config):
     if isinstance(config, dict):
@@ -114,6 +148,7 @@ def train(config):
             config.model,
             config=model_config,
             quantization_config=bnb_config,
+            use_flash_attention_2=True,
             torch_dtype=torch.float16 if config.fp16 else torch.float32,
             device_map={"": Accelerator().process_index} if torch.cuda.is_available() else None,
             
@@ -123,8 +158,8 @@ def train(config):
             config.model,
             config=model_config,
             token=config.token,
-            # trust_remote_code=True,
-            # use_flash_attention_2=config.use_flash_attention_2,
+            trust_remote_code=True,
+            use_flash_attention_2=config.use_flash_attention_2,
         )
 
     model.resize_token_embeddings(len(tokenizer))
@@ -200,8 +235,8 @@ def train(config):
                 desc="Running tokenizer on validation dataset",
             )
 
-        train_data = train_data.map(
-            group_texts_fn,
+        train_data = train_data.shuffle(seed=1).map(
+            Concatenator(chunk_size=block_size),
             batched=True,
             num_proc=4,
             desc=f"Grouping texts in chunks of {block_size}",
@@ -211,7 +246,7 @@ def train(config):
             valid_data = valid_data.map(
                 group_texts_fn,
                 batched=True,
-                num_proc=4,
+                num_proc=8,
                 desc=f"Grouping texts in chunks of {block_size}",
             )
 
