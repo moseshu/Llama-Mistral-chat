@@ -44,6 +44,42 @@ You are a helpful, respectful and honest assistant.
 
 TEXT_COLUMN = "text"
 
+
+
+class Concatenator(object):
+    def __init__(self, chunk_size=4096):
+        self.chunk_size=chunk_size
+        self.residual = {"input_ids": [], "attention_mask": []}
+        
+    def __call__(self, batch):
+        concatenated_samples = {
+            k: v + list(chain(*batch[k])) for k, v in self.residual.items()
+        }
+
+        total_length = len(concatenated_samples[list(concatenated_samples.keys())[0]])
+
+        if total_length >= self.chunk_size:
+            chunk_num = total_length // self.chunk_size
+            result = {
+                k: [
+                    v[i : i + self.chunk_size]
+                    for i in range(0, chunk_num * self.chunk_size, self.chunk_size)
+                ]
+                for k, v in concatenated_samples.items()
+            }
+            self.residual = {
+                k: v[(chunk_num * self.chunk_size) :]
+                for k, v in concatenated_samples.items()
+            }
+        else:
+            result = concatenated_samples
+            self.residual = {k: [] for k in concatenated_samples.keys()}
+
+        result["labels"] = result["input_ids"].copy()
+
+        return result
+
+
 def process_data(data, tokenizer, job_config):
     data = data.to_pandas()
     data = data.fillna("")
@@ -231,6 +267,7 @@ def train(
                 load_in_8bit=use_int8,
                 device_map=device_map,
                  use_cache=False,
+                use_flash_attention_2=flash_attn
             )
 
     
@@ -349,7 +386,7 @@ def train(
                                                       batched=True,
                                                       num_proc=8,)
         train_data = train_data.shuffle(seed=1).map(
-            group_texts,
+            Concatenator(chunk_size=block_size),
             batched=True,
             num_proc=8
         )
@@ -373,7 +410,7 @@ def train(
         logging_steps=200,
         save_total_limit=5,
         warmup_steps=10,
-        sharded_ddp=True,
+        # sharded_ddp=True,
         save_strategy="steps",
         gradient_accumulation_steps=gradient_accumulation_steps,
         report_to=report_to,
