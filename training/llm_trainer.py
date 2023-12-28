@@ -3,14 +3,16 @@ import sys
 from typing import List
 import fire
 import torch
+import datasets
 import transformers
-from datasets import load_dataset,Dataset
+from datasets import load_dataset,Dataset,concatenate_datasets
 import json
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from itertools import chain
 from datasets import Dataset, load_dataset
 from loguru import logger
-
+from attn_and_long_ctx_patches import apply_attention_patch, apply_ntk_scaling_patch
+from llama_xformers_attn_monkey_patch import replace_llama_attn_with_xformers_attn
 from peft import (
     LoraConfig,
     get_peft_model,
@@ -27,8 +29,15 @@ from transformers import (
     Trainer,
     TrainingArguments,
     default_data_collator,
+BitsAndBytesConfig,
 )
+import bitsandbytes as bnb
 
+###
+# apply_attention_patch(use_memory_efficient_attention=True)
+# apply_ntk_scaling_patch(2.0)
+replace_llama_attn_with_xformers_attn()
+###
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -36,15 +45,44 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 
-llama2_prompt ={ "prompt_no_input":"""<s> [INST] <<SYS>>
-You are a helpful, respectful and honest assistant.
+
+
+llama2_prompt ={ "prompt_no_input":"""[INST] <<SYS>>
+You are a helpful, respectful and honest assistant.Help humman as much as you can.
 <</SYS>>
 
 {instruction} [/INST]"""}
 
 TEXT_COLUMN = "text"
 
+def process_data(data, tokenizer, job_config):
+    data = data.to_pandas()
+    data = data.fillna("")
 
+    data = data[[TEXT_COLUMN]]
+    if job_config.add_eos_token:
+        data[TEXT_COLUMN] = data[TEXT_COLUMN] + tokenizer.eos_token
+    data = Dataset.from_pandas(data)
+    return data
+
+def tokenize(tokenizer, prompt, add_eos_token=True):
+    result = tokenizer(
+        prompt,
+        truncation=True,
+        max_length=tokenizer.model_max_length,
+        padding=False,
+        return_tensors=None,
+    )
+    if result["input_ids"][-1] != tokenizer.eos_token_id and add_eos_token:
+        if len(result["input_ids"]) >= tokenizer.model_max_length:
+            result["input_ids"] = result["input_ids"][:-1]
+            result["attention_mask"] = result["attention_mask"][:-1]
+        result["input_ids"].append(tokenizer.eos_token_id)
+        result["attention_mask"].append(1)
+
+    result["labels"] = result["input_ids"].copy()
+
+    return result
 
 class Concatenator(object):
     def __init__(self, chunk_size=4096):
@@ -80,35 +118,29 @@ class Concatenator(object):
         return result
 
 
-def process_data(data, tokenizer, job_config):
-    data = data.to_pandas()
-    data = data.fillna("")
+# def load_datasets1(data_path):
+#     files = os.listdir(data_path)
+#     data_paths = [os.path.join(data_path,f) for f in files]
+#     all_datasets = []
+#     for file in data_paths:
+#         if not (file.endswith(".json") or file.endswith(".jsonl")):
+#             continue
+#         cache_path = file.split(".")[0].split("/")[-1]
+#         os.makedirs(f"./cache/{cache_path}", exist_ok=True)
+#         try:
+            
+#             raw_dataset = datasets.load_from_disk(f"./cache/{cache_path}")
+#             print(f'training datasets-{file} has been loaded from disk')
+#         except:
+#             raw_dataset = load_dataset("json", data_files=file,cache_dir=f"./cache/{cache_path}")
+#             raw_dataset.save_to_disk(f"./cache/{cache_path}")
+#         all_datasets.append(raw_dataset['train'])
+#     all_datasets = concatenate_datasets(all_datasets)
+#     return all_datasets
 
-    data = data[[TEXT_COLUMN]]
-    if job_config.add_eos_token:
-        data[TEXT_COLUMN] = data[TEXT_COLUMN] + tokenizer.eos_token
-    data = Dataset.from_pandas(data)
-    return data
 
-def tokenize(tokenizer, prompt, add_eos_token=True):
-    result = tokenizer(
-        prompt,
-        truncation=True,
-        max_length=tokenizer.model_max_length,
-        padding=False,
-        return_tensors=None,
-    )
-    if result["input_ids"][-1] != tokenizer.eos_token_id and add_eos_token:
-        if len(result["input_ids"]) >= tokenizer.model_max_length:
-            result["input_ids"] = result["input_ids"][:-1]
-            result["attention_mask"] = result["attention_mask"][:-1]
-        result["input_ids"].append(tokenizer.eos_token_id)
-        result["attention_mask"].append(1)
 
-    result["labels"] = result["input_ids"].copy()
 
-    return result
-    
 def load_datasets(data_path):
     files = os.listdir(data_path)
     data_paths = [os.path.join(data_path,f) for f in files]
@@ -116,12 +148,17 @@ def load_datasets(data_path):
     for file in data_paths:
         if not (file.endswith(".json") or file.endswith(".jsonl")):
             continue
-        raw_dataset = load_dataset("json", data_files=file,cache_dir="./.cache/huggingface/datasets")
-        
-        all_datasets.append(raw_dataset['train'])
+        try:
+            raw_dataset = load_dataset("json", data_files=file,cache_dir="./.cache")
+            print(f"loading file:{file}")
+            cmd = f'rm -r .cache/'
+            all_datasets.append(raw_dataset['train'])
+            # subprocess.check_call(cmd, shell=True)
+        except:
+            print(f'load {file}file error check your file is correct json file')
     all_datasets = concatenate_datasets(all_datasets)
     return all_datasets
-    
+
 def tokenize_func(examples,tokenizer,add_eos_token=True):
     text_all = []
     for i in range(len(examples['instruction'])):
@@ -129,7 +166,7 @@ def tokenize_func(examples,tokenizer,add_eos_token=True):
         input = examples["input"][i]
         output = examples['output'][i]
         if input:
-            instruction = instruction + input
+            instruction = instruction + "\n" + input
             
         if output:
             context = llama2_prompt['prompt_no_input'].format_map({"instruction": instruction})+ " "+ output
@@ -137,10 +174,11 @@ def tokenize_func(examples,tokenizer,add_eos_token=True):
             context = instruction
         if add_eos_token and not context.endswith(tokenizer.eos_token):
             context = context + tokenizer.eos_token
-        if not context.startswith(tokenizer.bos_token):
-            context = tokenizer.bos_token + context
+        if not context.startswith("<s>"):
+            context = tokenizer.bos_token + context 
         tokenized_output = tokenizer(context,add_special_tokens=False)
         
+        # if len(tokenized_output['input_ids']) > 0:
         text_all.append(tokenized_output)
     
     res = Dataset.from_list(text_all)
@@ -164,6 +202,18 @@ def group_texts(examples, block_size):
     result["labels"] = result["input_ids"].copy()
     return result
 
+def find_all_linear_names(model):
+  
+    cls = bnb.nn.Linear4bit
+    lora_module_names = set()
+    for name, module in model.named_modules():
+        if isinstance(module, cls):
+            names = name.split('.')
+            lora_module_names.add(names[0] if len(names) == 1 else names[-1])
+
+    if 'lm_head' in lora_module_names:  # needed for 16-bit
+        lora_module_names.remove('lm_head')
+    return list(lora_module_names)
 
 
 class SavePeftModelCallback(transformers.TrainerCallback):
@@ -218,9 +268,10 @@ def train(
     group_by_length: bool = True,  # faster, but produces an odd training loss curve
     # wandb params
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-    gradient_accumulation_steps=8,
-    block_size: int = 512,
+    gradient_accumulation_steps=16,
+    block_size: int = 4096,
     use_int8 = False,
+    use_int4=False,
     add_eos_token = True,
     flash_attn=False
     ):
@@ -247,7 +298,9 @@ def train(
             f"block_size: {block_size}\n"
             f"add_eos_token:{add_eos_token}\n"
             f"use_int8:{use_int8}\n"
+            f"use_int4:{use_int4}\n"
             f"flash_attn:{flash_attn}\n"
+        
         )
 
     
@@ -259,23 +312,44 @@ def train(
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
     
     tokenizer = AutoTokenizer.from_pretrained(base_model)
-
-
+    if use_int4:
+        use_int8 = False
+    bnb_config = BitsAndBytesConfig(
+            load_in_4bit=use_int4,
+            load_in_8bit=use_int8,
+            llm_int8_threshold=6.0,
+            llm_int8_has_fp16_weight=False,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4"
+    )
+    
+    if use_int8:
+        bnb_config = BitsAndBytesConfig(load_in_8bit=use_int8)
+        
     model = AutoModelForCausalLM.from_pretrained(
                 base_model,
-                torch_dtype=torch.float16,
-                load_in_8bit=use_int8,
+                torch_dtype=torch.bfloat16,
+                # load_in_8bit=use_int8,
+                # load_in_4bit=use_int4,
                 device_map=device_map,
-                 use_cache=False,
-                use_flash_attention_2=flash_attn
+                use_cache=False,
+                quantization_config=bnb_config if (use_int8 or use_int4) else None,
+                # use_flash_attention_2=True,
+                attn_implementation="flash_attention_2",
             )
 
     
-    if tokenizer.model_max_length > 16000:
-        tokenizer.model_max_length = 16000
+        
+    if tokenizer.model_max_length > 128000:
+        tokenizer.model_max_length = 128000
 
-    if tokenizer.pad_token_id is None:
+    if tokenizer.pad_token is None:
+        # tokenizer.add_special_tokens({"pad_token":DEFAULT_PAD_TOKEN})
         tokenizer.pad_token_id = 0
+        # tokenizer.pad_token="[PAD]"
+        
+
 
     if flash_attn:
         from llama2_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
@@ -285,6 +359,15 @@ def train(
         print("Resize model embeddings to fit tokenizer")
         model.resize_token_embeddings(len(tokenizer))
 
+    if use_int8 or use_int4:
+        model = prepare_model_for_kbit_training(model)
+    #
+    if "mixtral" in base_model.lower() :
+        model.config.output_router_logits = True
+        if use_int4:
+            lora_target_modules = find_all_linear_names(model) 
+        print(f"lora_target_modules:{lora_target_modules}")
+    
      # Load LoRA configuration
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -294,8 +377,6 @@ def train(
         bias="none",
         task_type="CAUSAL_LM",
     )
-    if use_int8:
-        model = prepare_model_for_kbit_training(model)
     
     model = get_peft_model(model, peft_config)
     
@@ -313,11 +394,15 @@ def train(
        
     # else:
     #     data = load_dataset(data_path,cache_dir="./.cache/huggingface/datasets")
-        
+    
+    # print(f"end load datasets,sample:{len(data['train'])}")
     data=load_datasets(data_path)
-    print(f"end load datasets,sample:{len(data['train'])}")
-
-
+    gpu_nums = torch.cuda.device_count()
+    print(f"end load datasets,sample:{len(data)}\ngpu_nums:{gpu_nums}")
+    
+    max_steps = len(data) / (gpu_nums * gradient_accumulation_steps * micro_batch_size)
+    print(f"max_steps is:{max_steps}")
+    
     def generate_promt_func(examples):
         
         return tokenize_func(examples,tokenizer,add_eos_token)
@@ -326,13 +411,13 @@ def train(
 
     if block_size is None:
         block_size = tokenizer.model_max_length
-        if block_size > 1024:
+        if block_size > 2048:
             logger.warning(
                 "The chosen tokenizer supports a `model_max_length` that is longer than the default `block_size` value"
                 " of 1024. If you would like to use a longer `block_size` up to `tokenizer.model_max_length` you can"
                 " override this default with `--block_size xxx`."
             )
-            block_size = 1024
+            block_size = 2048
     else:
         if block_size > tokenizer.model_max_length:
             logger.warning(
@@ -342,13 +427,16 @@ def train(
         block_size = min(block_size, tokenizer.model_max_length)
         
     def group_texts(examples):
+        
         # Concatenate all texts.
         concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
         total_length = len(concatenated_examples[list(examples.keys())[0]])
-
+        # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
+        # customize this part to your needs.
         if total_length >= block_size:
             total_length = (total_length // block_size) * block_size
-
+        else:
+            total_length = 0
         # Split by chunks of max_len.
         result = {
             k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
@@ -363,7 +451,7 @@ def train(
         train_val = data.train_test_split(
             test_size=val_set_size, shuffle=True, seed=42
         )
-        train_data = train_val["train"].map(generate_promt_func,
+        train_data = train_val["train"].shuffle().map(generate_promt_func,
                                                       batched=True,
                                                       num_proc=4,)
         train_data = train_data.map(
@@ -372,9 +460,9 @@ def train(
             num_proc=4
         )
        
-        val_data = train_val["test"].map(generate_promt_func,
+        val_data = train_val["test"].shuffle().map(generate_promt_func,
                                                       batched=True,
-                                                      num_proc=4,)
+                                                      num_proc=8,)
         val_data = val_data.map(
             group_texts,
             batched=True,
@@ -382,18 +470,24 @@ def train(
         )
         
     else:
+        # torch.manual_seed(1)
         train_data = data.map(generate_promt_func,
-                                                      batched=True,
-                                                      num_proc=8,)
+                            batched=True,
+                            num_proc=8,
+                            remove_columns=list(data.features)
+                             )
+        print(f"tokenized train data samples:{len(train_data)}")
+        # random_seed = 1
+        # torch.manual_seed(random_seed)
         train_data = train_data.shuffle(seed=1).map(
             Concatenator(chunk_size=block_size),
             batched=True,
             num_proc=8
         )
         val_data = None
-    
+        print(f"train data samples:{len(train_data)}")
 
-    
+    # print(f"\ntotal tokens is: {total_tokens / 1000000000}B")
     if not ddp and torch.cuda.device_count() > 1:
         # keeps Trainer from trying its own DataParallelism when more than 1 gpu is available
         model.is_parallelizable = True
@@ -408,27 +502,31 @@ def train(
         num_train_epochs=num_epochs,
         evaluation_strategy="steps" if val_set_size > 0 else "no",
         logging_steps=200,
-        save_total_limit=5,
+        save_steps=200,
+        save_total_limit=3,
         warmup_steps=10,
-        # sharded_ddp=True,
         save_strategy="steps",
         gradient_accumulation_steps=gradient_accumulation_steps,
         report_to=report_to,
-        auto_find_batch_size=True,
-        lr_scheduler_type="constant",
+        auto_find_batch_size=False,
+        lr_scheduler_type="cosine",
         optim="adamw_torch",
         warmup_ratio=0.03,
         weight_decay=0.001,
+        max_steps = -1,
         max_grad_norm=0.3,
         ddp_timeout=7200,
-        fp16=True,
+        fp16=False,
+        bf16=True,
         group_by_length=group_by_length,
         load_best_model_at_end=True if val_set_size > 0 else False,
-        ddp_find_unused_parameters=False if ddp else None,
+        ddp_find_unused_parameters=False #if ddp else None,
     )
     
     args = TrainingArguments(**training_args)
 
+
+    
     data_collator = default_data_collator
     trainer = Trainer(
         args=args,
@@ -440,6 +538,18 @@ def train(
     )
     model.config.use_cache = False
     trainer.add_callback(SavePeftModelCallback)
+
+    # for name, module in trainer.model.named_modules():
+    #     # if isinstance(module, LoraLayer):
+    #     #     if script_args.bf16:
+    #     #         module = module.to(torch.bfloat16)
+    #     if "norm" in name:
+    #         module = module.to(torch.float32)
+        # if "lm_head" in name or "embed_tokens" in name:
+        #     if hasattr(module, "weight"):
+        #         if script_args.bf16 and module.weight.dtype == torch.float32:
+        #             module = module.to(torch.bfloat16)
+
     
     train_result=trainer.train(resume_from_checkpoint=None)
     metrics = train_result.metrics
@@ -449,7 +559,6 @@ def train(
     trainer.save_state()
     trainer.save_model()
     print("finished save model")
-    print("ignore the error at end")
 
 
 if __name__ == "__main__":
