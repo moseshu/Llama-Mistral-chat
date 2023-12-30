@@ -1,0 +1,17 @@
+transformers==4.36.1
+einops
+peft==0.6.1
+accelerate==0.25.0
+bitsandbytes==0.40.2
+loguru
+deepspeed
+jieba
+fire
+sentencepiece
+tensorboard
+tensorboardX
+openpyxl
+optimum
+xformers==0.0.22
+scipy
+flash-attn=2.3.3
