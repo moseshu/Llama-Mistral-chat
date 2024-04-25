@@ -111,7 +111,7 @@ def myform():
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 def search_products_details(query:str):
-    products_url="http://pre-algo-query-ner-model.shizhuang-inc.com/v1/chat/completions/query"
+    products_url=""
     res = requests.post(url=products_url,json={"sentence":query}).json()
     return res['response']
 
