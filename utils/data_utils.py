@@ -1,7 +1,8 @@
+# llama_v2_prompt(a)
 import jsonlines
 import json
 def jwrite(data_path,data:list):
-    with open(data_path,'w') as f:
+    with open(data_path,'w',encoding='utf-8') as f:
         json.dump(data,f,ensure_ascii=False,indent=2)
 
     
@@ -48,7 +49,10 @@ def load_jsonstr1(data_path,nums=2e10,line_num=0):
 from typing import List
 import json
 def jload(data_path:str)-> List:
-    with open(data_path,'r') as f:
-        data = json.load(f)
-    print(f"total samples:{len(data)}")
-    return data
+    if data_path.endswith("json"):
+        with open(data_path,'r') as f:
+            data = json.load(f)
+        print(f"total samples:{len(data)}")
+        return data
+    else:
+        return load_jsonstr1(data_path)
