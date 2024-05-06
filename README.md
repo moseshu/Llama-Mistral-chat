@@ -35,7 +35,7 @@ cd autotrain
 sh run.sh
 
 ```
-Huggingface link [My Huggingface Chat Moldel 13B](https://huggingface.co/Moses25/MosesLM-13B-chat)
+Huggingface link [My Huggingface Chat Moldel 13B]([https://huggingface.co/Moses25/MosesLM-13B-chat](https://huggingface.co/Moses25/Meta-LlaMA-3-8B-Instruct-16k))
 
 ![image](https://github.com/moseshu/llama2-chat/assets/23112888/ab1b4a31-51d7-40b3-a6f5-306013a43acb)
 
