@@ -33,7 +33,8 @@ Huggingface link [My Huggingface Chat Model 7B](https://huggingface.co/Moses25/L
 ```
 cd autotrain
 sh run.sh
-
+or
+sh script/llama_sft.sh
 ```
 Huggingface link [My Huggingface Chat Moldel 13B]([https://huggingface.co/Moses25/MosesLM-13B-chat](https://huggingface.co/Moses25/Meta-LlaMA-3-8B-Instruct-16k))
 
