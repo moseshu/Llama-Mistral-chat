@@ -8,3 +8,4 @@ sh webui.sh
 ```
 streamlit run streamlit_chatui.py --server.port 7777 > log.log 2>&1 &
 ```
+![image](https://github.com/moseshu/llama2-chat/assets/23112888/4abe7309-5f8c-4290-a20f-20d2bb3ddfed)
