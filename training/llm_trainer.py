@@ -53,6 +53,9 @@ You are a helpful, respectful and honest assistant.Help humman as much as you ca
 
 {instruction} [/INST]"""}
 
+llama3_prompt="<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{instruction}<|eot_id|>"
+
+
 TEXT_COLUMN = "text"
 
 def process_data(data, tokenizer, job_config):
@@ -118,29 +121,6 @@ class Concatenator(object):
         return result
 
 
-# def load_datasets1(data_path):
-#     files = os.listdir(data_path)
-#     data_paths = [os.path.join(data_path,f) for f in files]
-#     all_datasets = []
-#     for file in data_paths:
-#         if not (file.endswith(".json") or file.endswith(".jsonl")):
-#             continue
-#         cache_path = file.split(".")[0].split("/")[-1]
-#         os.makedirs(f"./cache/{cache_path}", exist_ok=True)
-#         try:
-            
-#             raw_dataset = datasets.load_from_disk(f"./cache/{cache_path}")
-#             print(f'training datasets-{file} has been loaded from disk')
-#         except:
-#             raw_dataset = load_dataset("json", data_files=file,cache_dir=f"./cache/{cache_path}")
-#             raw_dataset.save_to_disk(f"./cache/{cache_path}")
-#         all_datasets.append(raw_dataset['train'])
-#     all_datasets = concatenate_datasets(all_datasets)
-#     return all_datasets
-
-
-
-
 def load_datasets(data_path):
     files = os.listdir(data_path)
     data_paths = [os.path.join(data_path,f) for f in files]
@@ -185,22 +165,30 @@ def tokenize_func(examples,tokenizer,add_eos_token=True):
     return res.to_dict()
 
 
-def group_texts(examples, block_size):
-    # print(f"group_texts={examples}")
-    # Concatenate all texts.
-    concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
-    total_length = len(concatenated_examples[list(examples.keys())[0]])
-    # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
-    # customize this part to your needs.
-    if total_length >= block_size:
-        total_length = (total_length // block_size) * block_size
-    # Split by chunks of max_len.
-    result = {
-        k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-        for k, t in concatenated_examples.items()
-    }
-    result["labels"] = result["input_ids"].copy()
-    return result
+
+def llama3_tokenize_func(examples,tokenizer,add_eos_token=True):
+    text_all = []
+    for i in range(len(examples['instruction'])):
+        instruction = examples['instruction'][i]
+        input = examples["input"][i]
+        output = examples['output'][i]
+        if input:
+            instruction = instruction + "\n" + input
+            
+        if output:
+            context = llama3_prompt.format_map({"instruction": instruction})+ "<|start_header_id|>assistant<|end_header_id|>"+ output
+        else:
+            context = instruction
+        if add_eos_token and not context.endswith("<|eot_id|>"):
+            context = context + "<|eot_id|>"
+        if not context.startswith("<|begin_of_text|>"):
+            context = "<|begin_of_text|>" + context
+        tokenized_output = tokenizer(context,add_special_tokens=False)
+        # if len(tokenized_output['input_ids']) > 0:
+        text_all.append(tokenized_output)
+    
+    res = Dataset.from_list(text_all)
+    return res.to_dict()
 
 def find_all_linear_names(model):
   
@@ -273,7 +261,9 @@ def train(
     use_int8 = False,
     use_int4=False,
     add_eos_token = True,
-    flash_attn=False
+    flash_attn=False,
+    chat_type="mistral",
+    use_rslora=False,
     ):
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
@@ -300,6 +290,8 @@ def train(
             f"use_int8:{use_int8}\n"
             f"use_int4:{use_int4}\n"
             f"flash_attn:{flash_attn}\n"
+            f"chat_type:{chat_type}\n"
+            f"use_rslora:{use_rslora}\n"
         
         )
 
@@ -341,8 +333,8 @@ def train(
 
     
         
-    if tokenizer.model_max_length > 128000:
-        tokenizer.model_max_length = 128000
+    if tokenizer.model_max_length > 1280000:
+        tokenizer.model_max_length = 1280000
 
     if tokenizer.pad_token is None:
         # tokenizer.add_special_tokens({"pad_token":DEFAULT_PAD_TOKEN})
@@ -376,6 +368,7 @@ def train(
         target_modules=lora_target_modules,
         bias="none",
         task_type="CAUSAL_LM",
+        use_rslora=use_rslora,
     )
     # if not peft_path:
     model = get_peft_model(model, peft_config)
@@ -411,19 +404,25 @@ def train(
     
     def generate_promt_func(examples):
         
-        return tokenize_func(examples,tokenizer,add_eos_token)
+        if chat_type=='mistral':
+            return tokenize_func(examples,tokenizer,add_eos_token)
+        elif chat_type=='llama3':
+            return llama3_tokenize_func(examples,tokenizer,add_eos_token)
+        else:
+            print("error")
+            return ""
 
 
 
     if block_size is None:
         block_size = tokenizer.model_max_length
-        if block_size > 2048:
+        if block_size > 8192:
             logger.warning(
                 "The chosen tokenizer supports a `model_max_length` that is longer than the default `block_size` value"
                 " of 1024. If you would like to use a longer `block_size` up to `tokenizer.model_max_length` you can"
                 " override this default with `--block_size xxx`."
             )
-            block_size = 2048
+            block_size = 8192
     else:
         if block_size > tokenizer.model_max_length:
             logger.warning(
@@ -432,25 +431,7 @@ def train(
             )
         block_size = min(block_size, tokenizer.model_max_length)
         
-    def group_texts(examples):
-        
-        # Concatenate all texts.
-        concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
-        total_length = len(concatenated_examples[list(examples.keys())[0]])
-        # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
-        # customize this part to your needs.
-        if total_length >= block_size:
-            total_length = (total_length // block_size) * block_size
-        else:
-            total_length = 0
-        # Split by chunks of max_len.
-        result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-            for k, t in concatenated_examples.items()
-        }
-        result["labels"] = result["input_ids"].copy()
-        return result
-        
+    
     
         
     if val_set_size > 0:
@@ -461,7 +442,7 @@ def train(
                                                       batched=True,
                                                       num_proc=4,)
         train_data = train_data.map(
-            group_texts,
+           Concatenator(chunk_size=block_size),
             batched=True,
             num_proc=4
         )
@@ -470,7 +451,7 @@ def train(
                                                       batched=True,
                                                       num_proc=8,)
         val_data = val_data.map(
-            group_texts,
+            Concatenator(chunk_size=block_size),
             batched=True,
             num_proc=4
         )
