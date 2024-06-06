@@ -6,6 +6,7 @@ data_path='data/conversation-data'
 peft_path='llama2-checkpoint-dialogue/checkpoint-95000/adapter_model' 
 #--deepspeed config/ds_config.json \
 #deepspeed --num_gpus=2 
+#torchrun --nnodes 2 --nproc_per_node 8 --rdzv-id=7777 --rdzv-backend=c10d --rdzv-endpoint=master_ip
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node=8 --master_port=20002 training/llm_trainer.py \
     --base_model ${base_model} \
     --batch_size 16 \
@@ -21,8 +22,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node=8 --master_port=2
     --lora_alpha 128 \
     --lora_target_modules '[q_proj,k_proj,v_proj,o_proj,gate_proj,down_proj,up_proj]' \
     --report_to 'tensorboard' \
-    --block_size 512 \
-    --peft_path ${peft_path}
+    --block_size 7168 \
+    --peft_path ${peft_path} \
+    --chat_type "mistral"
     # --train_on_inputs False \
     # --add_eos_token True
     #--peft_path ${peft_path}
