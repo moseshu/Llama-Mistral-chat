@@ -16,10 +16,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node=8 --master_port=2
     --output_dir llama2-checkpoint-dialogue \
     --group_by_length \
     --val_set_size 0 \
-    --model_type llama \
-    --lora_r 128 \
-    --learning_rate 2e-4 \
-    --lora_alpha 128 \
+    --lora_r 256 \
+    --learning_rate 2e-5 \
+    --lora_alpha 512 \
     --lora_target_modules '[q_proj,k_proj,v_proj,o_proj,gate_proj,down_proj,up_proj]' \
     --report_to 'tensorboard' \
     --block_size 7168 \
