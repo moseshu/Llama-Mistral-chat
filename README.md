@@ -38,5 +38,6 @@ sh script/llama_sft.sh
 ```
 Huggingface link [My Huggingface Chat Llama3 Moldel 8B](https://huggingface.co/Moses25/Llama-3-8B-chat-32K))
 
-![image](https://github.com/moseshu/llama2-chat/assets/23112888/ab1b4a31-51d7-40b3-a6f5-306013a43acb)
+![image](https://github.com/moseshu/llama2-chat/assets/23112888/01d729fe-5c1c-44f1-a55e-33c20a8b5a79)
+
 
