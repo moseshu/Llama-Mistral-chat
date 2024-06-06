@@ -1,7 +1,7 @@
 #!/bin/bash
 # export NCCL_P2P_DISABLE=1
 # export NCCL_P2P_LEVEL=NVL
-base_model='meta-llama/Llama-2-7b-hf' 
+base_model='Moses25/Mistral-7B-chat-32k' 
 data_path='data/conversation-data'
 peft_path='llama2-checkpoint-dialogue/checkpoint-95000/adapter_model' 
 #--deepspeed config/ds_config.json \
