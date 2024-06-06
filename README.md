@@ -1,4 +1,4 @@
-# llama2-chat
+# Mistral and Llama3 chat
 #### data format
 ### 1.for instruction tuning data format is like 
 ```
