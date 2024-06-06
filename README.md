@@ -27,7 +27,7 @@ data['instruction']="""<s>[INST] <<SYS>>
 ```
 sh run_sfttrainer.sh
 ```
-Huggingface link [My Huggingface Chat Model 7B](https://huggingface.co/Moses25/Llama2-MosesLM-7b-chat)
+Huggingface link [My Huggingface Chat Model 7B](https://huggingface.co/Moses25/Mistral-7B-chat-32k)
 
 ### 4.autotrain llama   [autotrain-advanced](https://github.com/huggingface/autotrain-advanced)
 ```
