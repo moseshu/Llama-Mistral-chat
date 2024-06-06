@@ -1,7 +1,7 @@
-transformers==4.36.1
+transformers==4.40.1
 einops
-peft==0.6.1
-accelerate==0.25.0
+peft==0.10.0
+accelerate==0.27.2
 bitsandbytes==0.40.2
 loguru
 deepspeed
@@ -12,6 +12,7 @@ tensorboard
 tensorboardX
 openpyxl
 optimum
-xformers==0.0.22
 scipy
-flash-attn=2.3.3
+xformers==0.0.25.post1
+flash-attn==2.5.6 --no-build-isolation
+vllm==0.4.1
