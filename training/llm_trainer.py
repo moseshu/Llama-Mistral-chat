@@ -495,7 +495,7 @@ def train(
         save_strategy="steps",
         gradient_accumulation_steps=gradient_accumulation_steps,
         report_to=report_to,
-        auto_find_batch_size=True,
+        auto_find_batch_size=False,
         lr_scheduler_type="cosine",
         optim="adamw_torch",
         warmup_ratio=0.03,
@@ -506,6 +506,12 @@ def train(
         fp16=False,
         bf16=True,
         group_by_length=group_by_length,
+        fsdp="full_shard",
+        fsdp_config={
+            "backward_prefetch": "backward_pre",
+  "forward_prefetch": "false",
+  "use_orig_params": "false",
+        },
         load_best_model_at_end=True if val_set_size > 0 else False,
         ddp_find_unused_parameters=False #if ddp else None,
     )
