@@ -15,4 +15,4 @@ optimum
 scipy
 xformers==0.0.26
 flash-attn==2.5.9 --no-build-isolation
-vllm==0.4.1
+vllm==0.5.0
