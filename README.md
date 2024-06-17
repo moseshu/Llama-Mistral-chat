@@ -20,6 +20,23 @@ data['instruction']="""<s>[INST] <<SYS>>
 <</SYS>>
 
 {{ user_msg_1 }} [/INST] {{ model_answer_1 }} </s><s>[INST] {{ user_msg_2 }} [/INST] {{ model_answer_2 }} </s><s>[INST] {{ user_msg_3 }} [/INST]"""
+
+
+
+mistral_template="{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = false %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 and system_message != false %}{% set content = '<<SYS>>\\n' + system_message + '\\n<</SYS>>\\n\\n' + message['content'] %}{% else %}{% set content = message['content'] %}{% endif %}{% if message['role'] == 'user' %}{{ bos_token + '[INST] ' + content.strip() + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' '  + content.strip() + ' ' + eos_token }}{% endif %}{% endfor %}"
+
+llama3_template="{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}"
+
+def chat_format(conversation:list,tokenizer,chat_type="mistral"):
+    system_prompt = "You are a helpful, respectful and honest assistant.Help humman as much as you can."
+    ap = [{"role":"system","content":system_prompt}] + conversation
+    if chat_type=='mistral':
+        id = tokenizer.apply_chat_template(ap,chat_template=mistral_template,tokenize=False)
+    elif chat_type=='llama3':
+        id = tokenizer.apply_chat_template(ap,chat_template=llama3_template,tokenize=False)
+        #id = id.rstrip("<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n")
+    return id
+
 ```
 #### in my llm_trainer.py the input is not padding with -100. It's a bit like pretraining steps. from left to right to predict next word.
 #### if you want to padd the input with -100.you can also use sft_train.sh
