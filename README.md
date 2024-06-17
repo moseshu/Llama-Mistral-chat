@@ -40,4 +40,5 @@ Huggingface link [My Huggingface Chat Llama3 Moldel 8B](https://huggingface.co/M
 
 ![image](https://github.com/moseshu/llama2-chat/assets/23112888/01d729fe-5c1c-44f1-a55e-33c20a8b5a79)
 
-
+### 5.FSDP
+refer to [llama-recipes](https://github.com/meta-llama/llama-recipes)
