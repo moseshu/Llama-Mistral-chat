@@ -59,3 +59,48 @@ Huggingface link [My Huggingface Chat Llama3 Moldel 8B](https://huggingface.co/M
 
 ### 5.FSDP
 refer to [llama-recipes](https://github.com/meta-llama/llama-recipes)
+
+### 6.openai-client
+```python
+import openai
+openai.api_key = "EMPTY"
+
+
+client = openai.OpenAI(
+    api_key="EMPTY",
+    base_url="http://localhost:7777/v1",
+)
+def chatbot(msgs):
+    model = "dewu-chat"
+    call_args = {
+        'temperature': 0.7,
+        'top_p': 0.9,
+        'top_k': 40,
+        'max_tokens': 4096, # output-len
+        'presence_penalty': 1.0,
+        'frequency_penalty': 0.0,
+        "repetition_penalty":1.0,
+        "stop":["<|im_end|>"],
+        # "stop":["</s>"],
+        # "stream":False,
+        "seed":None,
+
+    }
+    
+    # create a chat completion
+    completion = client.chat.completions.create(
+      model=model,
+      messages=msgs,
+      extra_body=call_args,
+        stream=False
+    )
+    # print the completion
+    return completion.choices[0].message.content
+
+def chatbot_single(text,system=None):
+    if not system:
+        system = "You are a assistant"
+    user = [{"role":"system","content":system},{"role":"user","content":text}]
+    return chatbot(user)
+
+```
