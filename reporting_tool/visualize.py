@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -76,5 +76,49 @@ def plot_numeric_histograms(df: pd.DataFrame, output_dir: str) -> Dict[str, str]
         plt.savefig(out_path, dpi=150)
         plt.close()
         outputs[column] = str(out_path)
+    return outputs
+
+
+def plot_adaptive(df: pd.DataFrame, output_dir: str) -> Dict[str, str]:
+    """Create additional charts automatically:
+    - Pie chart for small cardinality categorical columns
+    - Line chart for any numeric vs detected date index (if exists)
+    - Scatter for top two numeric columns
+    """
+    outputs: Dict[str, str] = {}
+    out_dir = Path(output_dir)
+    _ensure_dir(out_dir)
+
+    # Pie charts
+    cat_df = df.select_dtypes(include=["object", "category"])  # type: ignore[arg-type]
+    for col in cat_df.columns:
+        counts = df[col].astype("string").fillna("<NA>").value_counts().head(6)
+        if 2 <= len(counts) <= 6:
+            out_path = out_dir / f"pie_{col}.png"
+            plt.figure(figsize=(5, 5))
+            plt.pie(counts.values, labels=counts.index, autopct="%1.1f%%")
+            plt.title(f"Distribution: {col}")
+            plt.tight_layout()
+            plt.savefig(out_path, dpi=150)
+            plt.close()
+            outputs[f"pie_{col}"] = str(out_path)
+
+    # Scatter for top two numeric columns
+    numeric_cols = list(df.select_dtypes(include=["number"]).columns)
+    if len(numeric_cols) >= 2:
+        x_col, y_col = numeric_cols[:2]
+        sdf = df[[x_col, y_col]].dropna()
+        if not sdf.empty:
+            out_path = out_dir / f"scatter_{x_col}_vs_{y_col}.png"
+            plt.figure(figsize=(5, 4))
+            plt.scatter(sdf[x_col], sdf[y_col], alpha=0.7, color="#3182bd")
+            plt.xlabel(x_col)
+            plt.ylabel(y_col)
+            plt.title(f"Scatter: {x_col} vs {y_col}")
+            plt.tight_layout()
+            plt.savefig(out_path, dpi=150)
+            plt.close()
+            outputs[f"scatter_{x_col}_vs_{y_col}"] = str(out_path)
+
     return outputs
 

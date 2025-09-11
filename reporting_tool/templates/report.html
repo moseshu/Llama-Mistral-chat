@@ -73,6 +73,37 @@
     </div>
     {% endif %}
 
+    {% set keys = charts.keys() | list %}
+    {% set has_pie = false %}
+    {% for k in keys %}{% if k[:4] == 'pie_' %}{% set has_pie = true %}{% endif %}{% endfor %}
+    {% if has_pie %}
+    <div class="grid">
+      {% for k in keys %}
+      {% if k[:4] == 'pie_' %}
+      <div class="card">
+        <h3>{{ k.replace('pie_', 'Pie: ') }}</h3>
+        <img src="{{ charts[k] }}" alt="{{ k }}" />
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% set has_scatter = false %}
+    {% for k in keys %}{% if k[:8] == 'scatter_' %}{% set has_scatter = true %}{% endif %}{% endfor %}
+    {% if has_scatter %}
+    <div class="grid">
+      {% for k in keys %}
+      {% if k[:8] == 'scatter_' %}
+      <div class="card">
+        <h3>{{ k.replace('scatter_', 'Scatter: ') }}</h3>
+        <img src="{{ charts[k] }}" alt="{{ k }}" />
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if anomalies and anomalies|length > 0 %}
     <div class="card">
       <h3>Anomalies (|z| > 2.5)</h3>

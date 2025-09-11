@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Auto Charts Demo</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #222; }
+      h1 { margin-bottom: 0; }
+      .sub { color: #666; margin-top: 4px; }
+      table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; }
+      th { background: #f9fafb; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+      img { max-width: 100%; height: auto; border: 1px solid #eee; border-radius: 6px; }
+      .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eef2ff; color: #3730a3; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Auto Charts Demo</h1>
+    <div class="sub">Generated at 2025-09-11 02:32:27</div>
+
+    
+    <p>Derived columns: <span class="badge">revenue</span> </p>
+    
+
+    
+    <div class="card">
+      <h3>Time Series</h3>
+      <img src="report_output2/timeseries.png" alt="Time Series Chart" />
+    </div>
+    
+
+    
+    <div class="card">
+      <h3>Numeric Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th><th>Count</th><th>Mean</th><th>Std</th><th>Min</th><th>Median</th><th>Max</th>
+          </tr>
+        </thead>
+        <tbody>
+        
+          <tr>
+            <td>units</td>
+            <td>10</td>
+            <td>13.100</td>
+            <td>9.351</td>
+            <td>2.000</td>
+            <td>11.000</td>
+            <td>30.000</td>
+          </tr>
+        
+          <tr>
+            <td>price</td>
+            <td>10</td>
+            <td>11.400</td>
+            <td>6.258</td>
+            <td>4.900</td>
+            <td>9.900</td>
+            <td>19.900</td>
+          </tr>
+        
+          <tr>
+            <td>revenue</td>
+            <td>10</td>
+            <td>110.690</td>
+            <td>69.687</td>
+            <td>39.800</td>
+            <td>98.500</td>
+            <td>297.000</td>
+          </tr>
+        
+        </tbody>
+      </table>
+    </div>
+    
+
+    
+    <div class="grid">
+      
+      <div class="card">
+        <h3>Top categories: region</h3>
+        
+        <img src="report_output2/top_region.png" alt="Top region" />
+        
+      </div>
+      
+      <div class="card">
+        <h3>Top categories: product</h3>
+        
+        <img src="report_output2/top_product.png" alt="Top product" />
+        
+      </div>
+      
+    </div>
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+
+    
+
+  </body>
+  </html>
