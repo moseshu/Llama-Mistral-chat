@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #222; }
+      h1 { margin-bottom: 0; }
+      .sub { color: #666; margin-top: 4px; }
+      table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; }
+      th { background: #f9fafb; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+      img { max-width: 100%; height: auto; border: 1px solid #eee; border-radius: 6px; }
+      .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eef2ff; color: #3730a3; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>{{ title }}</h1>
+    <div class="sub">Generated at {{ generated_at }}</div>
+
+    {% if derived_columns and derived_columns|length > 0 %}
+    <p>Derived columns: {% for c in derived_columns %}<span class="badge">{{ c }}</span> {% endfor %}</p>
+    {% endif %}
+
+    {% if charts.timeseries %}
+    <div class="card">
+      <h3>Time Series</h3>
+      <img src="{{ charts.timeseries }}" alt="Time Series Chart" />
+    </div>
+    {% endif %}
+
+    {% if numeric_summary %}
+    <div class="card">
+      <h3>Numeric Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th><th>Count</th><th>Mean</th><th>Std</th><th>Min</th><th>Median</th><th>Max</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for col, stats in numeric_summary.items() %}
+          <tr>
+            <td>{{ col }}</td>
+            <td>{{ '%.0f'|format(stats.count) }}</td>
+            <td>{{ '%.3f'|format(stats.mean) }}</td>
+            <td>{{ '%.3f'|format(stats.std) }}</td>
+            <td>{{ '%.3f'|format(stats.min) }}</td>
+            <td>{{ '%.3f'|format(stats.median) }}</td>
+            <td>{{ '%.3f'|format(stats.max) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if category_top_counts %}
+    <div class="grid">
+      {% for col, _ in category_top_counts.items() %}
+      <div class="card">
+        <h3>Top categories: {{ col }}</h3>
+        {% if charts['top_' + col] %}
+        <img src="{{ charts['top_' + col] }}" alt="Top {{ col }}" />
+        {% else %}
+        <em>No chart generated.</em>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if anomalies and anomalies|length > 0 %}
+    <div class="card">
+      <h3>Anomalies (|z| > 2.5)</h3>
+      <table>
+        <thead><tr><th>Date</th><th>Value</th><th>Z-score</th></tr></thead>
+        <tbody>
+          {% for a in anomalies %}
+          <tr>
+            <td>{{ a.date }}</td><td>{{ '%.3f'|format(a.value) }}</td><td>{{ '%.2f'|format(a.z) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  </body>
+  </html>
+
