@@ -1,18 +1,33 @@
-transformers==4.41.2
-einops
-peft==0.11.1
-accelerate==0.31.0
-bitsandbytes==0.43.1
-loguru
-deepspeed
-jieba
-fire
-sentencepiece
-tensorboard
-tensorboardX
-openpyxl
-optimum
-scipy
-xformers==0.0.26
-flash-attn==2.5.9 --no-build-isolation
-vllm==0.5.0
+# 多Agent数据分析系统依赖包
+
+# 核心数据处理
+pandas>=1.5.0
+numpy>=1.21.0
+
+# 文件处理
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+openpyxl>=3.0.0
+Pillow>=9.0.0
+pytesseract>=0.3.10
+
+# 可视化
+matplotlib>=3.5.0
+seaborn>=0.11.0
+plotly>=5.0.0
+wordcloud>=1.9.0
+
+# 中文分词
+jieba>=0.42.1
+
+# Web界面
+streamlit>=1.25.0
+
+# 日志和工具
+logging>=0.4.9.6
+
+# 可选依赖（用于更好的功能支持）
+# scikit-learn>=1.0.0  # 机器学习功能
+# statsmodels>=0.13.0  # 统计分析
+# xlrd>=2.0.0          # 旧版Excel文件支持
+# python-docx2txt>=0.8 # 旧版Word文件支持
